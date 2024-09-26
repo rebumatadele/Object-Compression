@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 import gzip
 import brotli
@@ -28,33 +28,51 @@ class CompressRequest(BaseModel):
     data: Dict[str, Any]  # Accept any complex JSON structure
 
 class DecompressRequest(BaseModel):
-    data: str  # Expecting base64-encoded string
+    data: bytes  # Expecting raw bytes for decompression
 
-@app.post("/compress/gzip/")
-async def compress_gzip(request: CompressRequest):
-    """Compress data using Gzip."""
+@app.post("/compress/gzip/raw/")
+async def compress_gzip_raw(request: CompressRequest):
+    """Compress data using Gzip and return raw bytes."""
     try:
         json_data = str(request.data).encode('utf-8')  # Convert dict to bytes
         compressed_data = compress_with_gzip(json_data)
-        # Return the compressed data as a base64-encoded string
+        return Response(content=compressed_data, media_type="application/octet-stream")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/compress/gzip/base64/")
+async def compress_gzip_base64(request: CompressRequest):
+    """Compress data using Gzip and return base64-encoded string."""
+    try:
+        json_data = str(request.data).encode('utf-8')  # Convert dict to bytes
+        compressed_data = compress_with_gzip(json_data)
         return {"compressed_data": base64.b64encode(compressed_data).decode('utf-8')}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/compress/brotli/")
-async def compress_brotli(request: CompressRequest):
-    """Compress data using Brotli."""
+@app.post("/compress/brotli/raw/")
+async def compress_brotli_raw(request: CompressRequest):
+    """Compress data using Brotli and return raw bytes."""
     try:
         json_data = str(request.data).encode('utf-8')  # Convert dict to bytes
         compressed_data = compress_with_brotli(json_data)
-        # Return the compressed data as a base64-encoded string
+        return Response(content=compressed_data, media_type="application/octet-stream")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/compress/brotli/base64/")
+async def compress_brotli_base64(request: CompressRequest):
+    """Compress data using Brotli and return base64-encoded string."""
+    try:
+        json_data = str(request.data).encode('utf-8')  # Convert dict to bytes
+        compressed_data = compress_with_brotli(json_data)
         return {"compressed_data": base64.b64encode(compressed_data).decode('utf-8')}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/decompress/gzip/")
 async def decompress_gzip(request: DecompressRequest):
-    """Decompress Gzip data from base64 string."""
+    """Decompress Gzip data from raw bytes."""
     try:
         compressed_data = base64.b64decode(request.data)
         decompressed_data = decompress_with_gzip(compressed_data)
@@ -64,7 +82,7 @@ async def decompress_gzip(request: DecompressRequest):
 
 @app.post("/decompress/brotli/")
 async def decompress_brotli(request: DecompressRequest):
-    """Decompress Brotli data from base64 string."""
+    """Decompress Brotli data from raw bytes."""
     try:
         compressed_data = base64.b64decode(request.data)
         decompressed_data = decompress_with_brotli(compressed_data)
